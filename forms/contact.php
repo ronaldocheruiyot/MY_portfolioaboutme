@@ -1,53 +1,44 @@
 <?php
-  /**
-  * Requires the "PHP Email Form" library
-  * The "PHP Email Form" library is available only in the pro version of the template
-  * The library should be uploaded to: vendor/php-email-form/php-email-form.php
-  * For more info and help: https://bootstrapmade.com/php-email-form/
-  */
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
-  // Use environment variables or configuration files for sensitive data
-  $receiving_email_address = getenv('RECEIVING_EMAIL_ADDRESS');
+require '../vendor/autoload.php'; // adjust path as needed
 
-  if (!$receiving_email_address) {
-    die('Receiving email address is not set.');
-  }
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name    = filter_var($_POST['name'], FILTER_SANITIZE_STRING);
+    $email   = filter_var($_POST['email'], FILTER_VALIDATE_EMAIL);
+    $subject = filter_var($_POST['subject'], FILTER_SANITIZE_STRING);
+    $message = filter_var($_POST['message'], FILTER_SANITIZE_STRING);
 
-  if (file_exists($php_email_form = '../assets/vendor/php-email-form/php-email-form.php')) {
-    include($php_email_form);
-  } else {
-    die('Unable to load the "PHP Email Form" Library!');
-  }
+    if (!$email) {
+        http_response_code(400);
+        echo 'Invalid email address.';
+        exit;
+    }
 
-  $contact = new PHP_Email_Form;
-  $contact->ajax = true;
+    $mail = new PHPMailer(true);
 
-  // Validate and sanitize POST inputs
-  $contact->from_name = filter_var($_POST['name'], FILTER_SANITIZE_STRING);
-  $contact->from_email = filter_var($_POST['email'], FILTER_VALIDATE_EMAIL);
-  $contact->subject = filter_var($_POST['subject'], FILTER_SANITIZE_STRING);
+    try {
+        // SMTP setup
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'ronaldokipkirui90@gmail.com'; // your Gmail
+        $mail->Password   = 'your-app-password-here';      // App password
+        $mail->SMTPSecure = 'tls';
+        $mail->Port       = 587;
 
-  if (!$contact->from_email) {
-    die('Invalid email address.');
-  }
+        $mail->setFrom($email, $name);
+        $mail->addAddress('ronaldokipkirui90@gmail.com'); // your destination
 
-  $contact->to = $receiving_email_address;
+        $mail->Subject = $subject;
+        $mail->Body    = "From: $name\nEmail: $email\n\nMessage:\n$message";
 
-  // Uncomment below code if you want to use SMTP to send emails. You need to enter your correct SMTP credentials
-  $contact->smtp = array(
-    'host' => 'smtp.gmail.com',
-    'username' => getenv('SMTP_USERNAME'),
-    'password' => getenv('SMTP_PASSWORD'),
-    'port' => '587'
-  );
-
-  if (!$contact->smtp['username'] || !$contact->smtp['password']) {
-    die('SMTP credentials are not set.');
-  }
-
-  $contact->add_message($contact->from_name, 'From');
-  $contact->add_message($contact->from_email, 'Email');
-  $contact->add_message(filter_var($_POST['message'], FILTER_SANITIZE_STRING), 'Message', 10);
-
-  echo $contact->send();
+        $mail->send();
+        echo 'Message has been sent';
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo "Mailer Error: {$mail->ErrorInfo}";
+    }
+}
 ?>
